@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import { getTenantId, getAccessToken } from "egov-ui-kit/utils/localStorageUtils";
 import { setSessionTTL } from "egov-ui-kit/redux/app/actions";
 import { connect } from "react-redux";
+import { logout } from "egov-ui-kit/redux/auth/actions";
 class EGFFinance extends Component {
   constructor(props) {
     super(props);
@@ -23,15 +24,22 @@ class EGFFinance extends Component {
 
   startCountdown(ttlSeconds) {
     clearInterval(this.countdownInterval);
+
+    // compute absolute expiry time
+    const expiryTime = Date.now() + ttlSeconds * 1000;
+
     this.countdownInterval = setInterval(() => {
-      ttlSeconds -= 1;
-      if (ttlSeconds <= 0) {
-        clearInterval(this.countdownInterval);
-        ttlSeconds = 0;
+      const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+
+      // dispatch only when there's an actual change
+      this.props.setSessionTTL(remaining);
+
+      if (remaining <= 0) {
+        this.handleSessionExpired();
       }
-      this.props.setSessionTTL(ttlSeconds);
     }, 1000);
   }
+
 
 async fetchTTL() {
   try {
@@ -49,6 +57,7 @@ async fetchTTL() {
     const response = await fetch(TtlUrl, { credentials: "include" });
     if (!response.ok) {
       console.warn("TTL API responded with status:", response.status);
+      this.handleSessionExpired();
       return;
     }
     const data = await response.json();
@@ -62,9 +71,37 @@ async fetchTTL() {
   } catch (error) {
     // Don't show raw errors on UI — just log silently for debugging
     console.warn("Failed to fetch TTL:", error.message);
+    this.handleSessionExpired();
   }
 }
+  async handleSessionExpired() {
+    // Optional: clear any running timers
+    clearInterval(this.countdownInterval);
 
+    // Show alert or toast
+    alert("Your session has expired. Please log in again.");
+
+    try {
+    // Attempt Redux logout (await ensures it completes)
+    if (this.props && this.props.logout) {
+      await this.props.logout();
+    }
+
+    // Clean local/session storage
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // Finally redirect to proper login path
+    window.location.replace("/digit-ui/employee/user/login");
+  } catch (err) {
+    console.error("Logout failed:", err);
+
+    // Fallback: still redirect
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.replace("/digit-ui/employee/user/login");
+  }
+  }
   /** Submit the hidden form to iframe */
   submitIframeForm = () => {
     const form = document.forms["erp_form"];
@@ -217,7 +254,6 @@ async fetchTTL() {
     });
     console.log("Loading Finance Iframe URL:", erp_url);
   }
-
   onMessage = (event) => {
     if (event.data != "close") return;
     // document.getElementById('erp_iframe').style.display='none';
@@ -246,4 +282,4 @@ async fetchTTL() {
 
 }
 
-export default connect(null, { setSessionTTL })(EGFFinance);
+export default connect(null, { setSessionTTL, logout })(EGFFinance);

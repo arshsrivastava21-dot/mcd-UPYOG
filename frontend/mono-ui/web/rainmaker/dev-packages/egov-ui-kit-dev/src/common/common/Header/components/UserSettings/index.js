@@ -281,7 +281,7 @@ class UserSettings extends Component {
 
     // ==================== Dynamic User Menu ====================
 
-    // 🧾 BMID
+    // BMID
     const bmid = (userInfo && (userInfo.userName || userInfo.bmid)) || "Not Available";
 
     // 👥 Build role list
@@ -732,7 +732,7 @@ class UserSettings extends Component {
               onClick={this.handleContinueSession}
               style={{
                 color: "#fff",
-                backgroundColor: "#22c55e",
+                backgroundColor: "#1f9249ff",
                 fontWeight: "600",
                 borderRadius: "8px",
                 padding: "6px 16px",
